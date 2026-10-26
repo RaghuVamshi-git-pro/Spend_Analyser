@@ -1,5 +1,6 @@
 from datetime import date, time
 from pathlib import Path
+import sqlite3
 
 from .database import (
     DEFAULT_DATABASE_PATH,
@@ -62,5 +63,54 @@ def create_expense(
         connection.commit()
 
         return int(cursor.lastrowid)
+    finally:
+        connection.close()
+
+
+def list_expenses(
+    *,
+    category: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    payment_source: str | None = None,
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> list[sqlite3.Row]:
+    initialize_database(database_path)
+
+    conditions: list[str] = []
+    parameters: list[str] = []
+
+    if category is not None:
+        conditions.append("category = ?")
+        parameters.append(category.strip())
+
+    if start_date is not None:
+        conditions.append("expense_date >= ?")
+        parameters.append(start_date.isoformat())
+
+    if end_date is not None:
+        conditions.append("expense_date <= ?")
+        parameters.append(end_date.isoformat())
+
+    if payment_source is not None:
+        conditions.append("payment_source = ?")
+        parameters.append(payment_source.strip())
+
+    query = """
+        SELECT *
+        FROM expenses
+    """
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    query += """
+        ORDER BY expense_date DESC, expense_time DESC, id DESC
+    """
+
+    connection = get_connection(database_path)
+
+    try:
+        return connection.execute(query, parameters).fetchall()
     finally:
         connection.close()
