@@ -3,8 +3,7 @@ from datetime import date, time
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from .expense_repository import create_expense
-
+from .expense_repository import create_expense, list_expenses
 
 app = FastAPI(title="Spend Analyser API")
 
@@ -46,3 +45,19 @@ def add_expense(expense: ExpenseCreate) -> ExpenseCreated:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
     return ExpenseCreated(id=expense_id)
+
+@app.get("/expenses")
+def get_expenses(
+    category: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    payment_source: str | None = None,
+) -> list[dict[str, object]]:
+    expenses = list_expenses(
+        category=category,
+        start_date=start_date,
+        end_date=end_date,
+        payment_source=payment_source,
+    )
+
+    return [dict(expense) for expense in expenses]
